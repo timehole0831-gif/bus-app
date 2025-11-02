@@ -1,0 +1,22 @@
+{
+  "name": "실시간 버스 도착 알리미",
+  "short_name": "버스알리미",
+  "icons": [
+    {
+      "src": "https://i.imgur.com/O9CLv2S.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "https://i.imgur.com/O9CLv2S.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ],
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#005a9c"
+}
