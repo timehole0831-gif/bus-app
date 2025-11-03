@@ -1,0 +1,1042 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>실시간 버스 도착 알리미 (최종본)</title>
+
+    <link rel="manifest" href="/static/manifest.json">
+    <meta name="theme-color" content="#005a9c"/>
+
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200" />
+
+    <style>
+        :root {
+            --primary-color: #007bff;
+            --primary-hover: #0056b3;
+            --success-color: #198754;
+            --success-hover: #157347;
+            --secondary-color: #6c757d;
+            --secondary-hover: #5a6268;
+            --text-title: #212529;
+            --text-body: #343a40;
+            --text-light: #6c757d;
+            --bg-light: #f8f9fa;
+            --border-color: #dee2e6;
+        }
+
+        body {
+            font-family: 'Noto Sans KR', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen, Ubuntu, Cantarell, "Fira Sans", "Droid Sans", "Helvetica Neue", sans-serif;
+            background-color: var(--bg-light); color: var(--text-body);
+            line-height: 1.6;
+            margin: 0;
+            padding: 40px;
+        }
+
+        .main-grid-container {
+            display: grid;
+            max-width: 1200px;
+            margin: 0 auto;
+            gap: 30px;
+            grid-template-columns: 1fr;
+        }
+
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 12px;
+            box-shadow: 0 6px 20px rgba(0,0,0,0.08);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .sidebar {
+            background-color: #fdfdfd;
+            padding: 30px;
+            border-radius: 12px;
+            box-shadow: 0 6px 20px rgba(0,0,0,0.08);
+        }
+        .sidebar h2 {
+            margin-top: 0;
+            font-size: 1.5em;
+        }
+
+        h1, h2, .top-button-row > button {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            color: #212529;
+            margin-bottom: 25px;
+            font-weight: 700;
+        }
+        h2 { gap: 6px; margin-top: 35px; margin-bottom: 20px; font-size: 1.6em; }
+        h1 { font-size: 2.2em; margin-bottom: 30px; }
+
+        .form-group-row { display: flex; gap: 15px; margin-bottom: 20px; }
+        .form-group-row > div { flex: 1; }
+        .form-group { margin-bottom: 25px;}
+        label { display: block; margin-bottom: 10px; font-weight: 500; color: #343a40; }
+        input, select {
+            width: 100%; padding: 14px; border-radius: 8px; border: 1px solid #dee2e6; box-sizing: border-box;
+            font-size: 17px;
+            box-shadow: inset 0 1px 3px rgba(0,0,0,0.05);
+            transition: border-color 0.2s, box-shadow 0.2s;
+        }
+        input:focus, select:focus {
+            border-color: #007bff;
+            outline: none;
+            box-shadow: 0 0 0 3px rgba(0,123,255,0.2);
+        }
+
+        button {
+            width: 100%; padding: 16px; background-color: #007bff; color: white; border: none;
+            border-radius: 8px; font-size: 19px; font-weight: 700; cursor: pointer;
+            transition: background-color 0.3s, transform 0.1s ease-out, box-shadow 0.2s;
+            box-shadow: 0 4px 10px rgba(0,123,255,0.2);
+            letter-spacing: 0.5px;
+        }
+        button:hover {
+            background-color: #0056b3;
+            transform: translateY(-2px);
+            box-shadow: 0 6px 15px rgba(0,123,255,0.3);
+        }
+        button:active { transform: translateY(0); box-shadow: 0 2px 5px rgba(0,123,255,0.2); }
+        button:disabled { background-color: #cccccc; cursor: not-allowed; box-shadow: none; transform: none; }
+
+        .loader { display: none; align-items: center; justify-content: center; margin-top: 25px; font-size: 1.1em; color: #005a9c; gap: 10px; font-weight: 500; }
+        .loader::before { content: ''; width: 20px; height: 20px; border: 3px solid #005a9c; border-top-color: transparent; border-radius: 50%; animation: spin 1s linear infinite; }
+        @keyframes spin { to { transform: rotate(360deg); } }
+
+        .error { color: #d93025; background-color: #fbe9e7; border: 1px solid #f29c95; padding: 15px; border-radius: 8px; text-align: center; margin-top: 20px; display: none; font-weight: 500; }
+
+        .top-button-row { display: flex; gap: 12px; margin-bottom: 25px; }
+        .top-button-row > button { flex: 1; font-size: 17px; padding: 14px; font-weight: 500; }
+
+        .top-button-row > button .material-symbols-outlined {
+            position: relative;
+            top: 2px;
+            font-size: 1.3em;
+        }
+
+        button.notify-btn {
+            background-color: #198754;
+            box-shadow: 0 4px 10px rgba(25,135,84,0.2);
+            color: white;
+        }
+        button.notify-btn:hover {
+            background-color: #157347;
+            box-shadow: 0 6px 15px rgba(25,135,84,0.3);
+        }
+        button.notify-btn:disabled {
+             background-color: #198754;
+             opacity: 0.7;
+             box-shadow: none;
+             transform: none;
+             color: white;
+        }
+
+        button.map-btn {
+            background-color: #6c757d;
+            color: white;
+            box-shadow: 0 4px 10px rgba(108,117,125,0.2);
+        }
+        button.map-btn:hover {
+            background-color: #5a6268;
+            box-shadow: 0 6px 15px rgba(108,117,125,0.3);
+        }
+
+        #favorites-section, #recent-searches-section {
+            margin-top: 0;
+            margin-bottom: 30px;
+            border-bottom: 2px solid #eee;
+            padding-bottom: 25px;
+        }
+        #favorites-section:last-child, #recent-searches-section:last-child {
+            border-bottom: none;
+            margin-bottom: 0;
+            padding-bottom: 0;
+        }
+
+        #favorites-list { list-style: none; padding: 0; }
+        .fav-item { display: flex; justify-content: space-between; align-items: center; padding: 15px; border: 1px solid #eee; border-radius: 8px; margin-bottom: 12px; background-color: #fff; box-shadow: 0 2px 8px rgba(0,0,0,0.05); transition: background-color 0.2s, box-shadow 0.2s, transform 0.2s; }
+        .fav-item:hover { background-color: #f8f9fa; box-shadow: 0 4px 12px rgba(0,0,0,0.08); transform: translateY(-2px); }
+        .fav-item-info { cursor: pointer; flex-grow: 1; }
+        .fav-item-info b { font-size: 1.2em; color: #212529; }
+        .fav-item-info span { font-size: 0.95em; color: #6c757d; display: block; margin-top: 5px; }
+        .fav-remove-btn { background: none; border: none; color: #6c757d; font-size: 1.6em; cursor: pointer; padding: 5px; width: auto; opacity: 0.7; transition: opacity 0.2s, color 0.2s; }
+        .fav-remove-btn:hover { opacity: 1; color: #d93025; transform: scale(1.1); }
+
+        #recent-searches-list { list-style: none; padding: 0; }
+        .recent-item {
+            padding: 15px;
+            border: 1px solid #eee;
+            border-radius: 8px;
+            margin-bottom: 12px;
+            background-color: #fff;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+            transition: background-color 0.2s, box-shadow 0.2s, transform 0.2s;
+            cursor: pointer;
+        }
+        .recent-item:hover {
+            background-color: #f0f8ff;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+            transform: translateY(-2px);
+        }
+        .recent-item b { font-size: 1.1em; color: #212529; }
+        .recent-item span { font-size: 0.9em; color: #6c757d; display: block; margin-top: 5px; }
+        .empty-list-message {
+            text-align: center; color: #777; padding: 20px 0; font-size: 0.95em;
+        }
+
+        .station-choice-list { list-style: none; padding: 0; max-height: 280px; overflow-y: auto; border: 1px solid #dee2e6; border-radius: 8px; background-color: #fff; box-shadow: inset 0 1px 3px rgba(0,0,0,0.05); }
+        .station-choice-item { display: flex; justify-content: space-between; align-items: center; padding: 15px; border-bottom: 1px solid #eee; transition: background-color 0.2s; }
+        .station-choice-item:last-child { border-bottom: none; }
+        .station-choice-item:hover { background-color: #f8f9fa; cursor: pointer; }
+        .station-choice-info { flex-grow: 1; font-size: 1.1em; color: #343a40; }
+        .station-choice-info small { color: #6c757d; margin-left: 10px; font-size: 0.9em; }
+
+        #dashboard-list { list-style: none; padding: 0; }
+        .dashboard-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border: 1px solid #eee;
+            margin-bottom: 12px;
+            border-radius: 8px;
+            background-color: #fff;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+            transition: box-shadow 0.2s, transform 0.2s;
+        }
+        .dashboard-item:hover {
+            box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+            transform: translateY(-2px);
+        }
+
+        .dashboard-info {
+            padding: 18px;
+            flex-grow: 1;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-left: 6px solid var(--border-color);
+            border-radius: 8px 0 0 8px;
+        }
+        .dashboard-info.type-red { border-left-color: #e64c3c; }
+        .dashboard-info.type-blue { border-left-color: #3498db; }
+        .dashboard-info.type-green { border-left-color: #2ecc71; }
+        .dashboard-info.type-yellow { border-left-color: #f1c40f; }
+        .dashboard-info.type-gray { border-left-color: #95a5a6; }
+
+        .dashboard-route { flex: 1; }
+        .dashboard-route .route-name { font-weight: 700; font-size: 1.25em; color: #212529; }
+        .dashboard-route .route-direction { font-size: 0.85em; color: #6c757d; margin-top: 4px; }
+
+        .dashboard-arrival {
+            flex-shrink: 0;
+            text-align: right;
+            min-width: 120px;
+            padding-left: 10px;
+        }
+        .dashboard-arrival .arrival-time {
+            font-size: 1.25em;
+            font-weight: 700;
+            color: var(--primary-color);
+        }
+        .dashboard-arrival .arrival-time b {
+            font-size: 1.3em;
+            color: #d93025;
+        }
+        .dashboard-arrival .arrival-stops {
+            font-size: 0.9em;
+            color: var(--text-light);
+            margin-top: 4px;
+        }
+
+        .fav-toggle-btn { background: none; border: none; font-size: 1.8em; cursor: pointer; padding: 0 15px; width: auto; color: #ced4da; transition: color 0.2s, transform 0.1s; display: flex; align-items: center; }
+        .fav-toggle-btn .material-symbols-outlined { font-size: 1.3em; font-variation-settings: 'FILL' 0; }
+        .fav-toggle-btn:hover { color: #f0c300; transform: scale(1.1); }
+        .fav-toggle-btn.favorited { color: #f0c300; }
+        .fav-toggle-btn.favorited .material-symbols-outlined { font-variation-settings: 'FILL' 1; }
+
+        #station-name { display: flex; justify-content: center; align-items: center; gap: 10px; margin-top: 30px; margin-bottom: 25px; font-size: 1.8em; font-weight: 700; flex-wrap: wrap; }
+        #station-name span { color: #212529; }
+        .map-link { font-size: 0.6em; font-weight: 500; text-decoration: none; padding: 6px 10px; background-color: #e9ecef; border-radius: 20px; color: #6c757d; white-space: nowrap; transition: background-color 0.2s, box-shadow 0.2s; display: flex; align-items: center; gap: 5px; }
+        .map-link:hover { background-color: #dee2e6; box-shadow: 0 2px 5px rgba(0,0,0,0.1); }
+        .map-link .material-symbols-outlined { font-size: 1.2em; }
+
+        #dashboard-timer {
+            font-size: 0.9em; color: #6c757d; text-align: center; margin-top: 20px; font-weight: 500;
+        }
+
+        #help-btn { position: absolute; top: 25px; right: 25px; cursor: pointer; font-size: 1.5em; background: none; border-radius: 50%; width: 36px; height: 36px; text-align: center; line-height: 36px; color: #adb5bd; user-select: none; z-index: 10; transition: background-color 0.2s, color 0.2s, transform 0.2s; font-variation-settings: 'FILL' 0; }
+        #help-btn:hover { background-color: #f1f3f5; color: #343a40; transform: rotate(15deg); }
+
+        .modal-overlay { display: none; position: fixed; z-index: 1000; left: 0; top: 0; width: 100%; height: 100%; overflow: auto; background-color: rgba(0,0,0,0.6); align-items: center; justify-content: center; }
+        .modal-content { background-color: #fefefe; margin: auto; padding: 25px 35px 35px 35px; border: 1px solid #aaa; border-radius: 10px; width: 90%; max-width: 550px; position: relative; animation: fadeIn 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275); box-shadow: 0 8px 30px rgba(0,0,0,0.2); }
+        @keyframes fadeIn { from { opacity: 0; transform: scale(0.8); } to { opacity: 1; transform: scale(1); } }
+        .modal-close { color: #aaa; float: right; font-size: 32px; font-weight: bold; position: absolute; top: 15px; right: 20px; transition: color 0.2s; }
+        .modal-close:hover, .modal-close:focus { color: #333; text-decoration: none; cursor: pointer; }
+        .modal-content h2 { margin-top: 10px; color: #212529; font-size: 1.8em; }
+        .modal-content p { text-align: center; line-height: 1.8; font-size: 1.1em; color: #343a40; margin-bottom: 15px; }
+        .modal-content img { width: 90%; max-width: 450px; margin: 20px auto; display: block; border: 1px solid #ddd; border-radius: 8px; box-shadow: 0 4px 10px rgba(0,0,0,0.1); }
+        .modal-content p strong { color: #d93025; font-size: 1.3em; }
+
+        @media (min-width: 1024px) {
+            .main-grid-container {
+                grid-template-columns: 1fr 350px;
+                gap: 30px;
+                align-items: start;
+            }
+            .sidebar {
+                position: sticky;
+                top: 40px;
+            }
+            .container, .sidebar {
+                margin: 0;
+            }
+        }
+
+        @media (max-width: 1023px) {
+            body { margin: 0; padding: 0 10px; }
+            .container { margin: 10px auto; padding: 20px 15px; border-radius: 12px; box-shadow: 0 6px 20px rgba(0,0,0,0.08); }
+            .sidebar { margin: 10px auto; }
+
+            h1 { font-size: 1.8em; margin-bottom: 20px; }
+            h2 { font-size: 1.4em; margin-top: 25px; margin-bottom: 15px; }
+            .top-button-row { flex-direction: column; gap: 12px; margin-bottom: 20px; }
+            .top-button-row > button { font-size: 17px; padding: 14px; }
+            .form-group-row { flex-direction: column; gap: 15px; margin-bottom: 15px; }
+            label { margin-bottom: 8px; font-size: 0.95em; }
+            input, select { padding: 12px; font-size: 16px; }
+            button { padding: 14px; font-size: 17px; }
+            #help-btn { top: 15px; right: 15px; width: 32px; height: 32px; line-height: 32px; font-size: 1.3em; }
+            .modal-content { padding: 20px 25px 25px 25px; width: 95%; }
+            .modal-content h2 { font-size: 1.5em; }
+            .modal-content p { font-size: 1em; margin-bottom: 10px; }
+            .modal-content img { margin: 15px auto; }
+            #favorites-section { margin-top: 25px; padding-bottom: 15px; }
+            .fav-item { padding: 12px; margin-bottom: 10px; }
+            .fav-item-info b { font-size: 1.1em; }
+            .fav-item-info span { font-size: 0.85em; }
+            .station-choice-item, .route-info { padding: 15px; }
+            .route-name { font-size: 1.15em; }
+            .route-direction { font-size: 0.8em; }
+            #station-name { font-size: 1.5em; margin-top: 25px; margin-bottom: 20px; gap: 8px; }
+            .map-link { font-size: 0.55em; padding: 5px 9px; }
+        }
+    </style>
+</head>
+<body>
+<div class="main-grid-container">
+
+    <main class="content-area">
+        <div class="container">
+            <span id="help-btn" class="material-symbols-outlined">help_outline</span>
+            <h1><span class="material-symbols-outlined">directions_bus</span> 실시간 버스 도착 알리미</h1>
+
+            <div class="top-button-row">
+                <button id="notification-button" class="notify-btn"><span class="material-symbols-outlined">notifications_active</span> 바탕화면 알림 허용하기</button>
+                <button id="show-map-btn" class="map-btn"><span class="material-symbols-outlined">map</span> 지도 보기</button>
+            </div>
+
+            <div class="form-group-row">
+                <div>
+                    <label for="region-select">지역 선택</label>
+                    <select id="region-select"></select>
+                </div>
+                <div>
+                    <label for="city-select">도시/행정구역 선택</label>
+                    <select id="city-select"></select>
+                </div>
+            </div>
+            <div class="form-group">
+                <label id="search-label" for="search-query">정류소 번호 (5자리)</label>
+                <input type="text" id="search-query" placeholder="정류장 표지판의 번호를 입력하세요">
+            </div>
+            <button id="search-button" onclick="searchStation()">조회하기</button>
+
+            <div class="loader">조회 중...</div>
+            <div id="error-message" class="error"></div>
+
+            <div id="station-choices" style="display: none;">
+                <h2><span class="material-symbols-outlined">location_on</span> 정류소를 선택하세요</h2>
+                <ul id="station-choice-list" class="station-choice-list"></ul>
+            </div>
+
+            <div id="dashboard-section" style="display: none;">
+                <h2 id="station-name"></h2>
+                <ul id="dashboard-list"></ul> <div id="dashboard-timer"></div> </div>
+
+        </div>
+    </main>
+
+    <aside class="sidebar">
+        <div id="favorites-section" style="display: none;">
+            <h2><span class="material-symbols-outlined">star</span> 즐겨찾기 (알림)</h2>
+            <ul id="favorites-list"></ul>
+        </div>
+        <div id="recent-searches-section" style="display: none;">
+            <h2><span class="material-symbols-outlined">history</span> 최근 검색</h2>
+            <ul id="recent-searches-list"></ul>
+        </div>
+    </aside>
+
+</div>
+
+<div id="help-modal" class="modal-overlay">
+    <div class="modal-content">
+        <span id="modal-close-btn" class="modal-close">&times;</span>
+        <h2 style="margin-top: 0;"><span class="material-symbols-outlined">info</span> '정류소 번호'란?</h2>
+        <p>정류소 번호는 버스 정류장 표지판에서<br>찾을 수 있는 <strong>5자리 고유 숫자</strong>입니다.</p>
+        <p>아래 예시 사진을 참고하세요.</p>
+        <img src="/static/help-image.png" alt="정류소 번호 예시">
+        <p style="text-align: center; color: #333;">
+            예시) '광교중앙.경기도청' 정류소의 번호는 <strong style="color: #d93025; font-size: 1.2em;">04397</strong> 입니다.
+        </p>
+    </div>
+</div>
+
+<script>
+    // 템플릿 엔진으로부터 VAPID 키와 지역 데이터를 받음
+    const regionData = {{ region_data|tojson }};
+    const VAPID_PUBLIC_KEY = '{{ vapid_public_key }}';
+
+    // 전역 변수 설정
+    let stationData = {}; // 현재 조회 중인 정류소/노선 정보 저장
+    let arrivalInterval;  // 30초 현황판 갱신 타이머
+    let timerInterval;    // 1초 카운트다운 타이머
+    let countdown = 30;   // 카운트다운 숫자
+    let currentCityCode = ''; // 현재 선택된 도시 코드
+
+    // LocalStorage 키
+    const FAVORITES_KEY = 'busFavorites';
+    const RECENT_SEARCHES_KEY = 'busRecentSearches';
+    const MAX_RECENT = 3; // 최근 검색 최대 3개
+
+    // --- 1. 사용자 브라우저의 구독 정보를 저장할 전역 변수 ---
+    let g_UserSubscription = null;
+
+
+    // --- 2. LocalStorage 헬퍼 함수들 ---
+    function getFavorites() { return JSON.parse(localStorage.getItem(FAVORITES_KEY) || '[]'); }
+    function saveFavorites(favorites) { localStorage.setItem(FAVORITES_KEY, JSON.stringify(favorites)); }
+    function getFavoriteId(stationId, routeId) { return `${stationId}-${routeId}`; }
+    function isFavorite(favId) { return getFavorites().some(fav => fav.favId === favId); }
+    function addFavorite(favObject) { const f = getFavorites(); if (!isFavorite(favObject.favId)) { f.push(favObject); saveFavorites(f); } }
+    function removeFavorite(favId) { let f = getFavorites(); f = f.filter(fav => fav.favId !== favId); saveFavorites(f); }
+    function getRecentSearches() { return JSON.parse(localStorage.getItem(RECENT_SEARCHES_KEY) || '[]'); }
+    function saveRecentSearches(searches) { localStorage.setItem(RECENT_SEARCHES_KEY, JSON.stringify(searches)); }
+    function addRecentSearch(searchObj) { let s = getRecentSearches(); s = s.filter(i => !(i.cityCode === searchObj.cityCode && i.query === searchObj.query)); s.unshift(searchObj); if (s.length > MAX_RECENT) { s = s.slice(0, MAX_RECENT); } saveRecentSearches(s); }
+
+    // --- 3. DOM 로드 완료 시 실행 ---
+    document.addEventListener('DOMContentLoaded', () => {
+        // 사이드바 로드
+        loadAndDisplayFavorites();
+        loadAndDisplayRecentSearches();
+
+        // 지역/도시 선택 <select> 초기화
+        const regionSelect = document.getElementById('region-select');
+        for (const regionName in regionData) { regionSelect.add(new Option(regionName, regionName)); }
+        regionSelect.addEventListener('change', updateCitySelect);
+        regionSelect.dispatchEvent(new Event('change')); // 초기 도시 목록 로드
+
+        // '바탕화면 알림 허용하기' 버튼 이벤트
+        const notificationButton = document.getElementById('notification-button');
+        if ('serviceWorker' in navigator && 'PushManager' in window) {
+            notificationButton.addEventListener('click', () => {
+                // 서비스 워커 등록 후, 구독 정보(g_UserSubscription) 받아오기
+                navigator.serviceWorker.register('/static/service-worker.js')
+                    .then(swReg => askPermissionAndSubscribe(swReg))
+                    .catch(error => console.error('서비스 워커 등록 실패:', error));
+            });
+        } else {
+            notificationButton.innerHTML = '<span class="material-symbols-outlined">notifications_off</span> 알림 지원 안됨';
+            notificationButton.disabled = true;
+            notificationButton.style.backgroundColor = '#6c757d';
+        }
+
+        // '지도 보기' 버튼
+        document.getElementById('show-map-btn').addEventListener('click', openDefaultMap);
+
+        // '정류소 번호란?' 도움말 모달
+        const helpBtn = document.getElementById('help-btn');
+        const helpModal = document.getElementById('help-modal');
+        const closeModalBtn = document.getElementById('modal-close-btn');
+        helpBtn.onclick = () => { helpModal.style.display = 'flex'; }
+        closeModalBtn.onclick = () => { helpModal.style.display = 'none'; }
+        helpModal.onclick = (event) => {
+            if (event.target == helpModal) { helpModal.style.display = 'none'; }
+        }
+    });
+
+    // --- 4. UI 렌더링 함수 (사이드바) ---
+    function openDefaultMap() {
+        const mapUrl = `https://map.kakao.com/link/map/경기도청,37.2882,127.0517`;
+        window.open(mapUrl, '_blank');
+    }
+
+    function loadAndDisplayFavorites() {
+        const favorites = getFavorites();
+        const listEl = document.getElementById('favorites-list');
+        const sectionEl = document.getElementById('favorites-section');
+        listEl.innerHTML = '';
+        if (favorites.length === 0) {
+            sectionEl.style.display = 'block';
+            listEl.innerHTML = '<li class="empty-list-message">알림 받을 버스가 없습니다.<br>노선 목록에서 <span class="material-symbols-outlined" style="font-size: 1em; vertical-align: middle; color: #f0c300; font-variation-settings: \'FILL\' 0;">star</span>을 눌러 추가해보세요.</li>';
+            return;
+        }
+        sectionEl.style.display = 'block';
+        favorites.forEach(fav => {
+            const li = document.createElement('li');
+            li.className = 'fav-item';
+            // 즐겨찾기 정보 (클릭 시 해당 현황판 로드)
+            const info = document.createElement('div');
+            info.className = 'fav-item-info';
+            info.innerHTML = `<b>${fav.busNumber}번 버스</b> <span>@ ${fav.stationName}</span>`;
+            info.onclick = () => {
+                currentCityCode = fav.cityCode;
+                getRoutesForStation({
+                    nodeid: fav.stationId,
+                    nodenm: fav.stationName,
+                    citycode: fav.cityCode,
+                    gpsLati: "0",
+                    gpsLong: "0"
+                });
+                document.getElementById('dashboard-section').scrollIntoView({ behavior: 'smooth' });
+            };
+            // 제거 버튼
+            const removeBtn = document.createElement('button');
+            removeBtn.className = 'fav-remove-btn';
+            removeBtn.innerHTML = '&times;';
+            removeBtn.onclick = () => {
+                // 1. LocalStorage에서 제거
+                removeFavorite(fav.favId);
+                // 2. 사이드바 목록 새로고침
+                loadAndDisplayFavorites();
+
+                // 3. 서버에 구독 '취소' 요청
+                if (g_UserSubscription) {
+                    unsubscribeFromBus(fav, g_UserSubscription);
+                }
+
+                // 4. 현황판의 별표 아이콘 업데이트
+                if (document.getElementById('dashboard-section').style.display === 'block') {
+                    updateFavoriteIcons();
+                }
+            };
+            li.appendChild(info);
+            li.appendChild(removeBtn);
+            listEl.appendChild(li);
+        });
+    }
+
+    function loadAndDisplayRecentSearches() {
+        const searches = getRecentSearches();
+        const listEl = document.getElementById('recent-searches-list');
+        const sectionEl = document.getElementById('recent-searches-section');
+        listEl.innerHTML = '';
+        if (searches.length === 0) {
+            sectionEl.style.display = 'none';
+            return;
+        }
+        sectionEl.style.display = 'block';
+        searches.forEach(search => {
+            const li = document.createElement('li');
+            li.className = 'recent-item';
+            li.innerHTML = `<b>${search.query}</b>
+                          <span>${search.regionName} &gt; ${search.cityName}</span>`;
+            // 클릭 시 해당 검색어/지역으로 재검색
+            li.onclick = () => {
+                document.getElementById('region-select').value = search.regionName;
+                document.getElementById('region-select').dispatchEvent(new Event('change'));
+                document.getElementById('city-select').value = search.cityCode;
+                document.getElementById('search-query').value = search.query;
+                document.getElementById('city-select').dispatchEvent(new Event('change'));
+                searchStation();
+                document.getElementById('search-button').scrollIntoView({ behavior: 'smooth' });
+            };
+            listEl.appendChild(li);
+        });
+    }
+
+    // --- 5. 검색 로직 ---
+
+    // 지역 선택 시 도시 목록 업데이트
+    function updateCitySelect() {
+        const regionSelect = document.getElementById('region-select');
+        const citySelect = document.getElementById('city-select');
+        const selectedRegion = regionSelect.value;
+        const cities = regionData[selectedRegion];
+        citySelect.innerHTML = '';
+        for (const cityName in cities) { citySelect.add(new Option(cityName, cities[cityName])); }
+        citySelect.dispatchEvent(new Event('change')); // 도시 선택 시 라벨 변경 이벤트 트리거
+    }
+
+    // 도시 선택 시 검색창 라벨/placeholder 변경 (번호/이름)
+    document.getElementById('city-select').addEventListener('change', (event) => {
+        const cityCode = event.target.value;
+        const searchLabel = document.getElementById('search-label');
+        const searchInput = document.getElementById('search-query');
+        if (cityCode.length < 5) {
+            searchLabel.textContent = '정류소 이름';
+            searchInput.placeholder = '예: 강남역, 시청';
+        } else {
+            searchLabel.textContent = '정류소 번호 (5자리)';
+            searchInput.placeholder = '정류장 표지판의 번호를 입력하세요';
+        }
+    });
+
+    // '조회하기' 버튼 클릭 시
+    async function searchStation() {
+        clearAllResults(); // 이전 결과 초기화
+        currentCityCode = document.getElementById('city-select').value;
+        const query = document.getElementById('search-query').value.trim();
+        if (!query) { showError('검색어를 입력해주세요.'); return; }
+
+        // 최근 검색어에 저장 (LocalStorage)
+        try {
+            const regionSelect = document.getElementById('region-select');
+            const citySelect = document.getElementById('city-select');
+            const searchObj = {
+                regionName: regionSelect.options[regionSelect.selectedIndex].text,
+                cityName: citySelect.options[citySelect.selectedIndex].text,
+                cityCode: currentCityCode,
+                query: query
+            };
+            addRecentSearch(searchObj);
+            loadAndDisplayRecentSearches(); // 사이드바 즉시 갱신
+        } catch(e) { console.error("최근 검색 저장 실패:", e); }
+
+        showLoader(true);
+        try {
+            const response = await fetch(`/api/search-station?cityCode=${currentCityCode}&query=${query}`);
+            if (!response.ok) { const errorData = await response.json(); throw new Error(errorData.error); }
+            const stations = await response.json();
+
+            // 정류소 '번호'로 검색했고 결과가 1개면, 바로 현황판 로드
+            if (stations.length === 1 && currentCityCode.length >= 5) {
+                await getRoutesForStation(stations[0]);
+            } else {
+                displayStationChoices(stations); // 여러 개면 선택 목록 표시
+            }
+        } catch (error) { showError(error.message); } finally { showLoader(false); }
+    }
+
+    // 검색 결과가 여러 개일 때 선택 목록 표시
+    function displayStationChoices(stations) {
+        const choicesDiv = document.getElementById('station-choices');
+        const choiceList = document.getElementById('station-choice-list');
+        choiceList.innerHTML = '';
+        stations.forEach(station => {
+            const li = document.createElement('li');
+            li.className = 'station-choice-item';
+            // 정류소 정보 (클릭 시 현황판 로드)
+            const info = document.createElement('div');
+            info.className = 'station-choice-info';
+            info.textContent = station.nodenm;
+            if (station.nodeno) { const small = document.createElement('small'); small.textContent = `(${station.nodeno})`; info.appendChild(small); }
+            info.onclick = () => getRoutesForStation(station);
+            // 지도 링크
+            const mapLink = document.createElement('a');
+            mapLink.href = `https://map.kakao.com/link/map/${station.nodenm},${station.gpslati},${station.gpslong}`;
+            mapLink.target = '_blank';
+            mapLink.className = 'map-link';
+            mapLink.innerHTML = '<span class="material-symbols-outlined" style="font-size: 1.2em; vertical-align: middle;">near_me</span> 지도';
+            li.appendChild(info);
+            li.appendChild(mapLink);
+            choiceList.appendChild(li);
+        });
+        choicesDiv.style.display = 'block';
+    }
+
+    // --- 6. 실시간 현황판(Dashboard) 로직 ---
+
+    // 1. (메인) 정류소의 모든 노선 목록 가져오기
+    async function getRoutesForStation(station) {
+        clearAllResults();
+        showLoader(true, "버스 노선 목록 로딩 중...");
+
+        // 전역 변수에 현재 정류소/노선 정보 저장
+        stationData = {
+            stationInfo: {
+                nodeid: station.nodeid,
+                nodenm: station.nodenm,
+                citycode: station.citycode || currentCityCode,
+                gpsLati: station.gpslati,
+                gpsLong: station.gpslong
+            },
+            routes: [] // 아래에서 채움
+        };
+        currentCityCode = stationData.stationInfo.citycode; // 전역 cityCode 동기화
+
+        // 현황판 제목 설정
+        const stationNameEl = document.getElementById('station-name');
+        const mapLink = `https://map.kakao.com/link/map/${station.nodenm},${station.gpslati},${station.gpslong}`;
+        stationNameEl.innerHTML = `<span>'${station.nodenm}' 실시간 현황판</span> <a href="${mapLink}" target="_blank" class="map-link"><span class="material-symbols-outlined">near_me</span> 지도 보기</a>`;
+        document.getElementById('dashboard-section').style.display = 'block';
+
+        try {
+            // 2. 이 정류소를 지나는 '모든 노선' 목록을 API로 가져오기
+            const response = await fetch(`/api/get-routes?cityCode=${currentCityCode}&nodeId=${station.nodeid}`);
+            if (!response.ok) { throw new Error( (await response.json()).error ); }
+            const routes = await response.json();
+            stationData.routes = routes; // 전역 변수에 저장
+
+            // 3. 30초 갱신 타이머 시작
+            startDashboardRefresh(routes, station);
+
+        } catch (error) {
+            showError(error.message);
+        } finally {
+            showLoader(false);
+        }
+    }
+
+    // 2. 30초 갱신 타이머 설정
+    function startDashboardRefresh(routes, station) {
+        if (arrivalInterval) clearInterval(arrivalInterval);
+        if (timerInterval) clearInterval(timerInterval);
+
+        const timerEl = document.getElementById('dashboard-timer');
+
+        // 갱신 함수
+        const updateAll = () => {
+            showLoader(true, "도착 정보 갱신 중...");
+            // 3. '모든 노선'의 도착 정보를 '동시에' 병렬로 요청
+            fetchAllArrivals(routes, station)
+                .then(allArrivalData => {
+                    // 4. 받아온 모든 정보를 화면에 표시
+                    displayDashboard(allArrivalData);
+                })
+                .catch(err => {
+                    showError("도착 정보 갱신에 실패했습니다.");
+                })
+                .finally(() => {
+                    showLoader(false);
+                });
+
+            countdown = 30; // 카운트다운 리셋
+            timerEl.textContent = `${countdown}초 후 새로고침`;
+        };
+
+        updateAll(); // 즉시 1회 실행
+        arrivalInterval = setInterval(updateAll, 30000); // 30초마다 갱신
+
+        // 1초마다 카운트다운 UI
+        timerInterval = setInterval(() => {
+            countdown--;
+            timerEl.textContent = `${countdown}초 후 새로고침`;
+        }, 1000);
+    }
+
+    // 3. 모든 노선의 도착 정보를 *동시에* 병렬로 요청
+    async function fetchAllArrivals(routes, station) {
+        const promises = routes.map(route => {
+            // /api/arrival-info는 이제 알림 발송 없이 순수 정보만 반환
+            const url = `/api/arrival-info?cityCode=${station.citycode || currentCityCode}&nodeId=${station.nodeid}&routeId=${route.routeid}`;
+            return fetch(url)
+                .then(res => res.json())
+                .then(data => ({
+                    route: route, // 어떤 노선인지 (routeno, routetp 등)
+                    arrivals: data // 이 노선의 도착 정보 (0~2개 버스)
+                }))
+                .catch(err => ({
+                    route: route,
+                    arrivals: [] // 에러 시 빈 배열
+                }));
+        });
+
+        const results = await Promise.allSettled(promises);
+        return results
+            .filter(res => res.status === 'fulfilled')
+            .map(res => res.value);
+    }
+
+    // --- ✅ [최종 수정] 4. displayDashboard 함수 (중복 버스 완벽 제거) ---
+    function displayDashboard(allArrivalData) {
+        const dashboardList = document.getElementById('dashboard-list');
+        dashboardList.innerHTML = '';
+
+        // --- 1. 중복 노선 제거를 위해 Map 사용 ---
+        const soonestBusesMap = new Map();
+
+        allArrivalData.forEach(data => {
+            const routeInfo = data.route; // {routeno, routeid, endnodenm, ...}
+
+            if (data.arrivals && data.arrivals.length > 0) {
+
+                // 1-1. 이 노선의 '가장 빠른' 버스 찾기
+                let soonestBusInRoute = data.arrivals[0];
+                if (data.arrivals.length > 1) {
+                    soonestBusInRoute = data.arrivals.reduce((soonest, current) => {
+                        return current.arrtime < soonest.arrtime ? current : soonest;
+                    });
+                }
+
+                // 1-2. '노선번호 + 종점'을 고유 키로 사용 (예: "88A-백석역.고양종합터미널 방면")
+                const uniqueRouteKey = `${routeInfo.routeno}-${routeInfo.endnodenm}`;
+                // '가장 빠른 버스 정보'와 '노선 정보'를 합침
+                const fullBusInfo = { ...soonestBusInRoute, ...routeInfo };
+
+                // 1-3. Map에 이미 이 노선이 있는지 확인
+                if (!soonestBusesMap.has(uniqueRouteKey)) {
+                    // 없으면 그냥 추가
+                    soonestBusesMap.set(uniqueRouteKey, fullBusInfo);
+                } else {
+                    // 있으면, '더 빠른' 버스로 교체
+                    const existingBus = soonestBusesMap.get(uniqueRouteKey);
+                    if (fullBusInfo.arrtime < existingBus.arrtime) {
+                        // 새로 들어온 버스(예: 5분)가 기존 버스(예: 7분)보다 빠르면 교체
+                        soonestBusesMap.set(uniqueRouteKey, fullBusInfo);
+                    }
+                    // (더 느리면 무시)
+                }
+            }
+        });
+
+        // 2. Map에 저장된 '가장 빠른' 버스들만 배열로 변환
+        let busesToShow = Array.from(soonestBusesMap.values());
+
+        // 3. 도착이 빠른 순으로 정렬
+        busesToShow.sort((a, b) => a.arrtime - b.arrtime);
+
+        // 4. 화면에 표시 (이하 로직은 기존과 동일)
+        if (busesToShow.length === 0) {
+            dashboardList.innerHTML = '<li class="empty-list-message">현재 운행 중인 버스가 없거나<br>도착 정보가 없습니다.</li>';
+        } else {
+            busesToShow.forEach(bus => {
+                const li = document.createElement('li');
+                li.className = 'dashboard-item';
+
+                // 정보 영역 (왼쪽)
+                const info = document.createElement('div');
+                const busTypeClass = getBusTypeClass(bus.routetp);
+                info.className = `dashboard-info ${busTypeClass}`;
+                const arrivalTimeMin = Math.floor(bus.arrtime / 60);
+                info.innerHTML = `
+                    <div class="dashboard-route">
+                        <span class="route-name">${bus.routeno}번 버스</span>
+                        <span class="route-direction">${bus.endnodenm} 방면</span>
+                    </div>
+                    <div class="dashboard-arrival">
+                        <span class="arrival-time"><b>${arrivalTimeMin}분</b> 후</span>
+                        <span class="arrival-stops">(${bus.arrprevstationcnt}개 정류장 남음)</span>
+                    </div>
+                `;
+                li.appendChild(info);
+
+                // 즐겨찾기 버튼 (오른쪽)
+                const favBtn = document.createElement('button');
+                favBtn.className = 'fav-toggle-btn';
+                // [중요] 즐겨찾기 ID는 고유한 routeid를 사용해야 함
+                const favId = getFavoriteId(stationData.stationInfo.nodeid, bus.routeid);
+
+                favBtn.dataset.routeId = bus.routeid;
+
+                if (isFavorite(favId)) {
+                    favBtn.innerHTML = '<span class="material-symbols-outlined">star</span>';
+                    favBtn.classList.add('favorited');
+                } else {
+                    favBtn.innerHTML = '<span class="material-symbols-outlined">star_border</span>';
+                }
+
+                const favObject = {
+                    favId: favId,
+                    cityCode: stationData.stationInfo.citycode,
+                    stationId: stationData.stationInfo.nodeid,
+                    stationName: stationData.stationInfo.nodenm,
+                    routeId: bus.routeid, // 이 버스의 고유 routeid
+                    busNumber: bus.routeno,
+                    busType: bus.routetp
+                };
+
+                favBtn.onclick = () => {
+                    if (isFavorite(favId)) {
+                        removeFavorite(favId);
+                        favBtn.innerHTML = '<span class="material-symbols-outlined">star_border</span>';
+                        favBtn.classList.remove('favorited');
+
+                        if (g_UserSubscription) {
+                            unsubscribeFromBus(favObject, g_UserSubscription);
+                        }
+                    } else {
+                        if (!g_UserSubscription) {
+                            alert('알림을 받으시려면, 상단의 "바탕화면 알림 허용하기" 버튼을 먼저 눌러주세요.');
+                            return;
+                        }
+
+                        addFavorite(favObject);
+                        favBtn.innerHTML = '<span class="material-symbols-outlined">star</span>';
+                        favBtn.classList.add('favorited');
+
+                        subscribeToBus(favObject, g_UserSubscription);
+                    }
+                    loadAndDisplayFavorites();
+                };
+
+                li.appendChild(favBtn);
+                dashboardList.appendChild(li);
+            });
+        }
+    }
+
+    // 현황판이 열린 상태에서 사이드바의 즐겨찾기 제거 시, 현황판의 별표 아이콘도 갱신
+    function updateFavoriteIcons() {
+        const dashboardList = document.getElementById('dashboard-list');
+        if (!dashboardList || !stationData.routes) return;
+
+        // 원본 노선 목록(stationData.routes)을 기준으로 순회
+        stationData.routes.forEach(route => {
+            if (!route) return;
+
+            const favId = getFavoriteId(stationData.stationInfo.nodeid, route.routeid);
+
+            // data-route-id 속성을 이용해 현황판의 정확한 버튼을 찾음 (index 기반 X)
+            const favBtn = dashboardList.querySelector(`.fav-toggle-btn[data-route-id="${route.routeid}"]`);
+
+            if (favBtn) { // 현황판에 해당 버튼이 표시된 경우
+                if (isFavorite(favId)) {
+                    favBtn.innerHTML = '<span class="material-symbols-outlined">star</span>';
+                    favBtn.classList.add('favorited');
+                } else {
+                    favBtn.innerHTML = '<span class="material-symbols-outlined">star_border</span>';
+                    favBtn.classList.remove('favorited');
+                }
+            }
+        });
+    }
+
+
+    // --- 7. 알림(Push) 관련 함수 ---
+
+    // '바탕화면 알림 허용' 버튼 클릭 시
+    async function askPermissionAndSubscribe(swReg) {
+        const permission = await window.Notification.requestPermission();
+        if (permission !== 'granted') {
+            alert('알림 권한이 거부되었습니다.');
+            throw new Error('Permission not granted');
+        }
+
+        // 브라우저에 푸시 구독 요청
+        const subscription = await swReg.pushManager.subscribe({
+            userVisibleOnly: true,
+            applicationServerKey: urlBase64ToUint8Array(VAPID_PUBLIC_KEY)
+        });
+
+        // 구독 정보를 서버로 바로 보내지 않고, 전역 변수(g_UserSubscription)에 저장
+        g_UserSubscription = subscription;
+        console.log("사용자 구독 정보(Subscription Object)를 전역 변수에 저장했습니다.");
+
+        alert('바탕화면 알림이 성공적으로 설정되었습니다!\n이제 원하는 버스의 (⭐) 버튼을 눌러 알림을 구독하세요.');
+        const notificationButton = document.getElementById('notification-button');
+        notificationButton.innerHTML = '<span class="material-symbols-outlined">notifications_active</span> 알림 설정 완료!';
+        notificationButton.disabled = true;
+    }
+
+    // VAPID 키를 Uint8Array로 변환
+    function urlBase64ToUint8Array(base64String) {
+        const padding = '='.repeat((4 - base64String.length % 4) % 4);
+        const base64 = (base64String + padding).replace(/-/g, '+').replace(/_/g, '/');
+        const rawData = window.atob(base64);
+        const outputArray = new Uint8Array(rawData.length);
+        for (let i = 0; i < rawData.length; ++i) { outputArray[i] = rawData.charCodeAt(i); }
+        return outputArray;
+    }
+
+    // (신규) 서버에 이 버스를 구독하겠다고 요청
+    async function subscribeToBus(busInfo, subscription) {
+        try {
+            const response = await fetch('/api/subscribe-bus', {
+                method: 'POST',
+                body: JSON.stringify({ busInfo: busInfo, subscription: subscription }),
+                headers: { 'Content-Type': 'application/json' }
+            });
+            if (response.ok) {
+                console.log(`구독 요청 성공: ${busInfo.busNumber}번 버스`);
+            } else {
+                console.error('구독 요청 실패:', await response.json());
+            }
+        } catch (error) {
+            console.error('구독 요청 중 네트워크 오류:', error);
+        }
+    }
+
+    // (신규) 서버에 이 버스 구독을 취소하겠다고 요청
+    async function unsubscribeFromBus(busInfo, subscription) {
+        try {
+            const response = await fetch('/api/unsubscribe-bus', {
+                method: 'POST',
+                body: JSON.stringify({ busInfo: busInfo, subscription: subscription }),
+                headers: { 'Content-Type': 'application/json' }
+            });
+             if (response.ok) {
+                console.log(`구독 취소 요청 성공: ${busInfo.busNumber}번 버스`);
+            } else {
+                console.error('구독 취소 요청 실패:', await response.json());
+            }
+        } catch (error) {
+            console.error('구독 취소 요청 중 네트워크 오류:', error);
+        }
+    }
+
+
+    // --- 8. 기타 유틸리티 함수 ---
+
+    // 버스 타입에 따라 CSS 클래스 반환
+    function getBusTypeClass(routeType) {
+        if (routeType.includes('광역') || routeType.includes('직행')) return 'type-red';
+        if (routeType.includes('간선') || routeType.includes('좌석')) return 'type-blue';
+        if (routeType.includes('일반') || routeType.includes('지선')) return 'type-green';
+        if (routeType.includes('마을') || routeType.includes('순환')) return 'type-yellow';
+        return 'type-gray';
+    }
+
+    // 검색 시 이전 결과(현황판, 선택목록, 에러메시지) 초기화
+    function clearAllResults() {
+        if (arrivalInterval) clearInterval(arrivalInterval);
+        if (timerInterval) clearInterval(timerInterval);
+        document.getElementById('error-message').style.display = 'none';
+        document.getElementById('station-choices').style.display = 'none';
+        document.getElementById('dashboard-section').style.display = 'none';
+        document.getElementById('dashboard-list').innerHTML = '';
+        document.getElementById('dashboard-timer').textContent = '';
+    }
+
+    // 로딩 스피너 표시/숨기기
+    function showLoader(isLoading, message = "조회하는 중...") {
+        const loader = document.querySelector('.loader');
+        loader.style.display = isLoading ? 'flex' : 'none';
+        loader.innerHTML = `<span></span> ${message}`;
+        const searchButton = document.getElementById('search-button');
+        searchButton.disabled = isLoading;
+        if (isLoading) {
+            searchButton.innerHTML = '<span class="material-symbols-outlined" style="animation: spin 1s linear infinite; font-size: 1.1em; line-height: 1;">progress_activity</span><span style="margin-left: 8px;">조회 중...</span>';
+        } else {
+            searchButton.innerHTML = '조회하기';
+        }
+    }
+
+    // 에러 메시지 표시
+    function showError(message) {
+        const errorMessage = document.getElementById('error-message');
+        errorMessage.textContent = message;
+        errorMessage.style.display = 'block';
+        document.querySelector('.loader').style.display = 'none';
+        const searchButton = document.getElementById('search-button');
+        searchButton.disabled = false;
+        searchButton.innerHTML = '조회하기';
+    }
+
+    // 검색창에서 Enter 키로 조회
+    document.getElementById('search-query').addEventListener('keyup', function(event) {
+        if (event.key === 'Enter') {
+            searchStation();
+        }
+    });
+</script>
+</body>
+</html>
